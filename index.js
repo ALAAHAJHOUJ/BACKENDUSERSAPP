@@ -9,6 +9,8 @@ const crypter2=require('bcrypt');
 const recherche=require('./logique/recherhce/recherchemotdepasse')
 const cookieParser = require("cookie-parser")
 const jwt=require('jsonwebtoken');
+const envoyeremail = require("./logique/envoyeremail/envoi");
+const envoyer = require("./logique/fonctionEnvoi");
 
 
 
@@ -46,19 +48,7 @@ res.send('une erreur est servenu');
 
 
 
-const routeMiddleware=(req, res, next)=> {//middelwere qui sera executé avant l'upload de l'image
-  const sql="select * from Admine";
-  let nombreLignes;
-  conn.query(sql,(err,resutat)=>{
-    if(err) {console.log('erreur lors de l\'execution de laquery sql');const error=new Error("une erreur est servenu pendant l'executionde laquery sql");next(error)}
-    const nombreLignes=+resutat.length+1;
 
-    const nomImage="image"+nombreLignes;
-    req.Value=nomImage;
-      next();
-  })
-
-}
 
 
 
@@ -75,7 +65,7 @@ const verifierUser=(req,res,next)=>{ //fonction de verification de l'utiliateur 
       else 
       {
         jwt.verify(token1,"jwt-secret-key",(err,decoded)=>{
-          if(err) {console.log('probleme dans le token');console.log(err);return res.send("hhhhhh")}
+          if(err) {console.log('probleme dans le token');console.log(err);return res.send("probleme dans le token")}
           req.name=decoded;
           console.log(decoded);
           next();
@@ -94,6 +84,24 @@ app.get('/',verifierUser,(req,res)=>{
 res.send(req.name);
 
 })
+
+
+
+
+
+const routeMiddleware=(req, res, next)=> {//middelwere qui sera executé avant l'upload de l'image
+  const sql="select * from Admine";
+  let nombreLignes;
+  conn.query(sql,(err,resutat)=>{
+    if(err) {console.log('erreur lors de l\'execution de laquery sql');const error=new Error("une erreur est servenu pendant l'executionde laquery sql");next(error)}
+    const nombreLignes=+resutat.length+1;
+
+    const nomImage="image"+nombreLignes;
+    req.Value=nomImage;
+      next();
+  })
+
+}
 
 
 
@@ -149,7 +157,7 @@ console.log(req.Value);
 
 
 
-app.post("/Login", (req,res)=>{//endpointde l'autentification
+app.post("/Login", (req,res)=>{//endpoint de l'autentification
 const {nom,password}=req.body;//recuperer les données utilisateur
 console.log(nom,password);
 
@@ -194,6 +202,32 @@ app.get("/Logout",(req,res)=>{    //endpoint de déconnexion
 
 
 })    
+
+
+
+
+
+app.post("/envoiducode",(req,res)=>{//endpoint d'envoi du code par email a l'utilisateur
+
+  const {email}=req.body;
+  const sql=`select * from Admine `;
+  conn.query(sql,(err,resultat)=>{
+    if(err) {console.log("une erreur est servenu");return res.send("une erreur est servenu");}
+
+    console.log(resultat);
+    const nombre=Math.floor(100000+Math.random()*999999);//generer un nombre aléatoire 
+    const codeverification=`ton code de verification est ${nombre}`;
+    envoyer("alaa.spread@gmail.com","renitialiser mot de passe",codeverification,res);
+  })
+})
+
+
+
+
+
+
+
+
 
 
 

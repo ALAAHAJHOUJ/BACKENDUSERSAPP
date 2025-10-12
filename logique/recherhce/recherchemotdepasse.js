@@ -1,4 +1,4 @@
-const crypter=require('bcrypt')
+const crypter=require('bcrypt');
 const jwt=require('jsonwebtoken');
 
 
