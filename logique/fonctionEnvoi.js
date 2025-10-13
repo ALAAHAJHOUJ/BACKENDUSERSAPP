@@ -2,9 +2,9 @@
 const util=require('util');
 
 
-const insererCodeVerification=async (conn,code,user)=>{
+const insererCodeVerification=async (conn,code,email)=>{
         const tempsEnvoi=new Date();
-        const sql=`insert into Code (code,dateinsertion,userid) values ("${code}","${tempsEnvoi.toISOString().slice(0,19).replace('T',' ')}",${user.id})`;
+        const sql=`insert into Code (code,dateinsertion,email) values ("${code}","${tempsEnvoi.toISOString().slice(0,19).replace('T',' ')}",${email})`;
 
 
         conn.query=util.promisify(conn.query);
@@ -27,7 +27,7 @@ const envoyer=async(email,subject,message,res,conn,code,user)=>{
        //recuperer la date d'insertion du code dans la base de données
 
         console.log(code)
-        await insererCodeVerification(conn,code,user);
+        await insererCodeVerification(conn,code,email);
 
         //await envoyeremail(email,subject,message);
         res.send("code envoyé avec succes,veuillez verifier");

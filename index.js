@@ -257,12 +257,12 @@ app.post("/veirifiercode",async(req,res)=>{  //endpoint de verification du code 
   {
    try {
       conn.query=util.promisify(conn.query);
-      const rows=await conn.query(`select * from Code where code="${code}"`);
+      const rows=await conn.query(`select * from Code where code="${code}" and email="${req.body.email}"`);
       if(rows.length!=0)
       {
        const date1=new Date(rows[0].dateinsertion);
        const maintenant=new Date();
-       if(maintenant-date1<60*1000*60){//ici on va envoyer un message d'autorisation si la difference de la date d'insertion et la date d'envoi de la demande est inférieure a 1h 
+       if(maintenant-date1<60*1000*60){   //ici on va envoyer un message d'autorisation si la difference de la date d'insertion et la date d'envoi de la demande est inférieure a 1h 
          res.send("autorisé a modifier le mot de passe")
        }
        else 
@@ -297,8 +297,8 @@ app.post("/veirifiercode",async(req,res)=>{  //endpoint de verification du code 
 
 app.post("/actualiserMotdepasse",async(req,res)=>{//endpoint d'actualisation du mot de passe de l'utilisateur
 
-const {iduser,nouveaupassword,code}=req.body;
-const sql=`select * from Code where code="${code}" and userid="${iduser}"`;
+const {email,nouveaupassword,code}=req.body;
+const sql=`select * from Code where code="${code}" and email="${email}"`;
 
 try {
     conn.query=util.promisify(conn.query);
@@ -311,7 +311,7 @@ try {
       {
       const hasher=crypter1(nouveaupassword);
       const sql=`update Admine set motdepasse="${hasher}" where id="${iduser}"`;
-      await conn.query(`DELETE FROM Code WHERE code ="${code}" and userid="${iduser}" `);  //supprimer la ligne de la table car le code est déja utilisé
+      await conn.query(`DELETE FROM Code WHERE code ="${code}" and email="${email}" `);  //supprimer la ligne de la table car le code est déja utilisé
       await conn.query(sql);
       }
       else 
