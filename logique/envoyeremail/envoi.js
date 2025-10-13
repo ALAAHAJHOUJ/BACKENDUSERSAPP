@@ -13,7 +13,7 @@ const transporter=nodemailer.createTransport({
 
 await transporter.sendMail({
     from:"alaa.spread#gmail.com",
-    to:"alaa.spread@gmail.com",
+    to:email,
     subject:"envoi de mail",
     text:"hey hajhouj it's me again"
 })
