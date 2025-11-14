@@ -45,14 +45,6 @@ const upload=multer({storage});  //middelwere pour formdata (fichiers)
 
 
 
-const middelwereError=(err,req,res,next)=>{   //middelwere de gestion d'erreurs
-console.log(err);
-res.send(err.message);
-}
-
-
-
-
 
 const verifierUser=(req,res,next)=>{ //fonction de verification de l'utiliateur s'il est authentifié ou non
   
@@ -489,8 +481,6 @@ try {
   return res.send("hey hey hajhouj")
 }
 
-
-
 })
 
 
@@ -592,21 +582,7 @@ try {
          const recuperImage=`select * from Admine where id=${req.name.id}`;
          const resultat=await conn.query(recuperImage);
 
-
-        //supprimer l'image de l'utilisateur
-
-        fs.unlinkSync(`./upload/${resultat[0].image}.png`)
-        console.log("image supprimée")
-
-
-
-
-        //query pour supprimer l'utilisateur
-        const supprimerUser=`delete from Admine where id=${req.name.id}`;
-        const rows=await conn.query(supprimerUser);
-
-
-
+         
         //supprimer les images des utilisateurs asscoiés
         const recupererImages=`select * from Usernormale where id_admine=${req.name.id}`;
         const rows2=await conn.query(recupererImages);
@@ -618,12 +594,27 @@ try {
         }
         await supprimer(paths);
 
-        
+
+
+        //supprimer l'image de l'utilisateur
+
+        fs.unlinkSync(`./upload/${resultat[0].image}.png`)
+        console.log("image supprimée")
+
+
+
 
         //query de suppression  des utilisateurs associés a cet utilisateur
         const supprimerUsers=`delete from Usernormale where id_admine=${req.name.id}`;
         const rows1=await conn.query(supprimerUsers);
 
+
+
+        //query pour supprimer l'utilisateur
+        const supprimerUser=`delete from Admine where id=${req.name.id}`;
+        const rows=await conn.query(supprimerUser);
+
+        
 
 
 
@@ -774,6 +765,10 @@ app.use((req,res,next)=>{  //middelewere de gestion des routes qui n'existent pa
 
 
 
+const middelwereError=(err,req,res,next)=>{   //middelwere de gestion d'erreurs
+console.log(err);
+res.send(err.message);
+}
 
 
 
