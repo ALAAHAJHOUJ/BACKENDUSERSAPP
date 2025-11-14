@@ -1,10 +1,11 @@
 
 const util=require('util');
+const envoyeremail = require('./envoyeremail/envoi');
 
 
 const insererCodeVerification=async (conn,code,email)=>{
         const tempsEnvoi=new Date();
-        const sql=`insert into Code (code,dateinsertion,email) values ("${code}","${tempsEnvoi.toISOString().slice(0,19).replace('T',' ')}",${email})`;
+        const sql=`insert into Code (code,dateinsertion,email) values ("${code}","${tempsEnvoi.toISOString().slice(0,19).replace('T',' ')}","${email}")`;
 
 
         conn.query=util.promisify(conn.query);
@@ -19,7 +20,7 @@ const insererCodeVerification=async (conn,code,email)=>{
 
 
 
-const envoyer=async(email,subject,message,res,conn,code,user)=>{
+const envoyer=async(email,subject,message,res,conn,code)=>{
 
 
 
@@ -27,9 +28,9 @@ const envoyer=async(email,subject,message,res,conn,code,user)=>{
        //recuperer la date d'insertion du code dans la base de données
 
         console.log(code)
-        await insererCodeVerification(conn,code,email);
+        await insererCodeVerification(conn,code,email,code);
 
-        //await envoyeremail(email,subject,message);
+        await envoyeremail(email,code);
         res.send("code envoyé avec succes,veuillez verifier");
 
 

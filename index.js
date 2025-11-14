@@ -12,13 +12,14 @@ const jwt=require('jsonwebtoken');
 const envoyeremail = require("./logique/envoyeremail/envoi");
 const envoyer = require("./logique/fonctionEnvoi");
 const util=require("util");
+const fs = require('fs');
+const path = require('path');
+const fs1 = require('fs').promises;
+
+app.use(cookieParser());//middelewre de parse de cookies
 
 
-
-app.use(cookieParser());//middelewre de parse de cookies 
-
-
-app.use(cors());//autoriser les requetes
+app.use(cors({origin: 'http://localhost:3000',credentials:true})); //autoriser les requetes et les cookies pour le navigateur
 
 app.use(express.json());//middelwere pour forma Json
 
@@ -27,7 +28,7 @@ app.use(express.json());//middelwere pour forma Json
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     console.log('je suis executé'+req.Value)
-    cb(null, './upload')
+    cb(null, './upload/')
   },
   filename: function (req, file, cb) {
     cb(null,req.Value+".png");
@@ -36,12 +37,16 @@ const storage = multer.diskStorage({
 
 
 
-const upload=multer(storage);//middelwere pour formdata (fichiers)
+const upload=multer({storage});  //middelwere pour formdata (fichiers)
 
 
 
-const middelwereError=(err,req,res,next)=>{//middelwere de gestion d'erreurs
-console.log(err)
+
+
+
+
+const middelwereError=(err,req,res,next)=>{   //middelwere de gestion d'erreurs
+console.log(err);
 res.send(err.message);
 }
 
@@ -49,27 +54,25 @@ res.send(err.message);
 
 
 
-
-
-
-
-
-
 const verifierUser=(req,res,next)=>{ //fonction de verification de l'utiliateur s'il est authentifié ou non
-
+  
   const token1=req.cookies.token;
-  console.log(token1);
-  if(!token1)
+  console.log(token1)
+
+      if(!token1)
       {
-        return res.json({Error:'non authentifié'})
+        return res.send({message:'non authentifié'})
       }
       else 
       {
         jwt.verify(token1,"jwt-secret-key",(err,decoded)=>{
-          if(err) {console.log('probleme dans le token');console.log(err);return res.send("probleme dans le token")}
+          if(err) {console.log('probleme dans le token');console.log(err);return res.send({message:"probleme dans le token"})}
+          else
+          {       
           req.name=decoded;
-          console.log(decoded);
           next();
+          }
+
         })
       }
 
@@ -86,12 +89,29 @@ const verifierUser=(req,res,next)=>{ //fonction de verification de l'utiliateur 
 
 
 
-const routeMiddleware=async(req, res, next)=> {//middelwere qui sera executé avant l'upload de l'image
+
+
+
+
+
+
+
+
+
+
+app.get('/',verifierUser,(req,res)=>{  //endpoint de verifcation de l'authenticité de l'utilisateur
+res.send({contenu:req.name,message:"authentifié"});
+})
+
+
+
+
+
+
+const routeMiddleware=async(req, res, next)=> {  //middelwere qui sera executé avant l'upload de l'image pour nommer l'image telechargée
 
   try {
         const sql="select * from Admine";
-        
-
         conn.query=util.promisify(conn.query);
         const rows=await conn.query(sql);
         const nombreLignes=rows.length+1;
@@ -112,15 +132,10 @@ const routeMiddleware=async(req, res, next)=> {//middelwere qui sera executé av
 
 
 
-app.get('/',verifierUser,(req,res)=>{
-res.send(req.name);
-})
 
-
-
-
+//endpoint  d'inscription 
 app.post("/inscription/",routeMiddleware,upload.single('image'),async(req,res)=>{
-
+          
           try {
             const recherche=`select * from Admine where email="${req.body.email}"`;
             const motdepasse=req.body.password;
@@ -130,10 +145,14 @@ app.post("/inscription/",routeMiddleware,upload.single('image'),async(req,res)=>
             const rows=await conn.query(recherche);
 
 
-
-            if(rows!=0)
+            console.log(rows.length)
+            if(rows.length!=0)
             {
-              res.send("l'email existe déja dans la base de données")
+              fs.unlink(`./upload/${req.Value}.png`,(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
+                if(err) {console.log(err); return res.send("une erreur s'est produite")}
+              })
+              return res.send("l'email existe déja dans la base de données");
+
             }
 
             else 
@@ -146,7 +165,7 @@ app.post("/inscription/",routeMiddleware,upload.single('image'),async(req,res)=>
             conn.query=util.promisify(conn.query);
             await conn.query(inserstion);
             console.log("enregistrement avec succes");
-            res.send("enregistrement avec succes");
+            return res.send("enregistrement avec succes");
           
             }
           } catch (error) {
@@ -162,9 +181,13 @@ app.post("/inscription/",routeMiddleware,upload.single('image'),async(req,res)=>
 
 
 
-app.post("/Login",async (req,res)=>{//endpoint de l'autentification
-    const {nom,password}=req.body;//recuperer les données utilisateur
-    console.log(nom,password);
+
+
+app.post("/Login",async (req,res)=>{ //endpoint de l'autentification
+    console.log(req.body)
+    const {nom,password}=req.body;  //recuperer les données utilisateur
+  
+    
 
 
     const rechercher=`select * from Admine where nom="${nom}"`; //recuperer tous les lignes de la table qui contient le nom saisie par l'utilisateur        
@@ -172,10 +195,14 @@ app.post("/Login",async (req,res)=>{//endpoint de l'autentification
 
     try {
       conn.query=util.promisify(conn.query);
-      const rows=await conn.query(recherche);
+      const rows=await conn.query(rechercher);
       if(rows.length!=0)
       {
-      recherche(rows,password,res);
+      const a=await recherche(rows,password,res);
+      }
+      else 
+      {
+        res.send("utilisateur n'existe pas")
       }
 
     } catch (error) {
@@ -198,15 +225,18 @@ app.get("/Logout",(req,res)=>{    //endpoint de déconnexion
   try {//ici on va supprimer le token du client (déconnexion)
     res.clearCookie('token');
     console.log("logout avec succes");
-    res.send("logout avec succes");
+    return res.send("logout avec succes");
     } catch (error) {
       console.log(error);
-      res.send("une erreur est servenue");
+     return  res.send("une erreur est servenue");
     }
 
 
 
 })    
+
+
+
 
 
 
@@ -223,10 +253,9 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
         const rows=await conn.query(sql);
         if(rows.length!=0)
         {
-            console.log(resultat);
-            const nombre=Math.floor(100000+Math.random()*999999);//generer un nombre aléatoire 
+            const nombre=Math.floor(10000+Math.random()*90000);//generer un nombre aléatoire de 5 chiffres
             const codeverification=`ton code de verification est ${nombre}`;
-            await envoyer(email,"renitialiser mot de passe",codeverification,res,conn,nombre+"",resultat[0]);
+            await envoyer(email,"renitialiser mot de passe",codeverification,res,conn,nombre+"");
         }
 
         else 
@@ -248,32 +277,34 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
 
 
 
-app.post("/veirifiercode",async(req,res)=>{  //endpoint de verification du code saisie par le client
+
+
+app.post("/verifiercode",async(req,res)=>{  //endpoint de verification du code saisie par le client
 
   const code=req.body.code;
+  const email=req.body.email;
 
-
-  if(!code) // c'est ici qu on va faire tout le travaille  de verification du code
+  if(code && email) // c'est ici qu on va faire tout le travaille  de verification du code
   {
    try {
       conn.query=util.promisify(conn.query);
-      const rows=await conn.query(`select * from Code where code="${code}" and email="${req.body.email}"`);
+      const rows=await conn.query(`select * from Code where code="${code}" and email="${email}"`);
       if(rows.length!=0)
       {
-       const date1=new Date(rows[0].dateinsertion);
-       const maintenant=new Date();
-       if(maintenant-date1<60*1000*60){   //ici on va envoyer un message d'autorisation si la difference de la date d'insertion et la date d'envoi de la demande est inférieure a 1h 
-         res.send("autorisé a modifier le mot de passe")
-       }
-       else 
-       {
-        res.send("le code est expirée")
-       }
+            const date1=new Date(rows[rows.length-1].dateinsertion);
+            const maintenant=new Date();
+            if(maintenant-date1>60*1000*60){   //ici on va envoyer un message d'autorisation si la difference de la date d'insertion et la date d'envoi de la demande est inférieure a 1h 
+              res.send("code valide et n 'est pas encore expiré")
+            }
+            else 
+            {
+              res.send("le code est expirée")
+            }
        
       }
       else 
       {
-        res.send("code n'existe pas dans la base de données")
+            res.send("code invalide")
       }
       
    } catch (error) {
@@ -283,10 +314,14 @@ app.post("/veirifiercode",async(req,res)=>{  //endpoint de verification du code 
 
    
   }
-  else{
-    res.send('code requis dans la demande')
+  else
+  {
+    res.send('code et email requis dans la demande')
   }
 })
+
+
+
 
 
 
@@ -303,24 +338,26 @@ const sql=`select * from Code where code="${code}" and email="${email}"`;
 try {
     conn.query=util.promisify(conn.query);
     const rows=await conn.query(sql);
-    if(rows.length!=0)
+    if(rows.length!=0)  //le code existe dans la base de données avec l'email de l'utilisateur concerné
     {
 
-      const dateinsertion=rows[0].dateinsertion;
-      if(new Date().now-new Date(dateinsertion)<60*60*1000)  //okk on va actualiser le mot de passe de l'utilisateur
-      {
-      const hasher=crypter1(nouveaupassword);
-      const sql=`update Admine set motdepasse="${hasher}" where id="${iduser}"`;
-      await conn.query(`DELETE FROM Code WHERE code ="${code}" and email="${email}" `);  //supprimer la ligne de la table car le code est déja utilisé
-      await conn.query(sql);
-      }
-      else 
-      {
-        res.send("code expirée")
-      }
+            const dateinsertion=rows[rows.length-1].dateinsertion;  //on doit choisir la derniere ligne (le client peut envoyer plusieurs damandes a l'endpoint de l'envoi du code )
+            if(new Date().now-new Date(dateinsertion)<60*60*1000)  //okk on va mettre a jour le mot de passe de l'utilisateur
+            {
+            const hasher=crypter1(nouveaupassword);
+            const sql=`update Admine set motdepasse="${hasher}" where id="${iduser}"`;
+            await conn.query(`DELETE FROM Code WHERE code ="${code}" and email="${email}" `);  //supprimer les lignes de la table ,l'utilisateur a mit a jour le mot de passe
+            await conn.query(sql);
+            res.send("mot de passe mis a jour avec succes")
+            }
+            else 
+            {
+              res.send("code expirée")
+            }
     }else 
+
     {
-      res.send("aucune code trouvé")
+             res.send("code invalide")
     }
 } catch (error) {
   console.log(error);
@@ -335,19 +372,414 @@ try {
 
 
 
+app.get("/getUsers/",verifierUser,async (req,res)=>{  //recuperer les utilisateurs 
+console.log(req.name.id);
+conn.query=util.promisify(conn.query);
+
+const sql=`select * from Usernormale where id_admine=${req.name.id}`
+const rows=await conn.query(sql,(err,resultat)=>{
+  if(err) {console.log(err); return res.send("une erreur est servenue")}
+
+  else 
+  {
+    console.log(resultat);
+    const a=JSON.stringify(resultat)
+    return res.send(resultat);
+  }
+})
+})
 
 
 
-app.use((req,res,next)=>{  //midelewere de gestion des routes qui n'existent pas
+
+
+
+app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppression d'un utilisateur
+    //opértaion de suppression dans la base de données
+
+
+    try {
+        conn.query=util.promisify(conn.query);
+        const resultat=await conn.query(`select * from Usernormale where id_user=${req.body.id} and id_admine=${req.name.id}`);
+
+        console.log(req.body.id);
+        console.log(req.name.id)
+
+        fs.unlink(`./upload/${resultat[0].image}.png`,(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
+            
+          if(err) {console.log(err); return res.send("une erreur s'est produite")}
+             
+        })
+
+
+        conn.query=util.promisify(conn.query);
+        const sql=`delete from Usernormale where id_admine=${req.name.id} and  id_user=${req.body.id}`;
+        await conn.query(sql);
+
+        return res.send({message:"opération avec succes"})
+    } catch (error) {
+      console.log(error);
+      return res.send({message:"une erreur s'est produite"})
+    }
+
+})
+
+
+
+
+
+
+
+
+const nommerImage=async(req,res,next)=>{  //middelewere qui nomme l'image de l'utilisateur avant la telecharger
+const sql=`select * from Usernormale`;
+
+conn.query=util.promisify(conn.query);
+
+try {
+        const rows= await conn.query(sql);
+        //on va maintenant nommer l'image avant la stocker dans le systeme de fichiers
+        
+        console.log("le nombre de lignes dans la table d'utilisateurs est:",rows.length);
+        const nombreLignes=rows.length+1+'';
+        const nomImage="imageUser"+nombreLignes;
+        req.Value=nomImage;
+
+        next();
+
+} catch (error) {
+        console.log(error);
+        return res.send("une erreur est servenue");
+}
+
+}
+
+
+
+
+
+
+app.post("/AjouterUser",verifierUser,nommerImage,upload.single('image'),async(req,res)=>{ //endpoint d'ajout d'un utilisateur
+console.log(req.body);
+//ajout de l'utilisteur commence ici
+
+
+//verifier d'abord l'email et le téléphone
+const sqlEmailTel=`select * from Usernormale where (email="${req.body.email}" or telephone="${req.body.telephone}") and id_admine=${req.name.id}`;
+conn.query=util.promisify(conn.query);
+
+try {
+      const rows=await conn.query(sqlEmailTel);
+      console.log(rows.length);
+
+      if(rows.length==0)  //on va ajouter l'utilisateur dans la base de données
+      {
+       const ajout=`insert into Usernormale (nom,prenom,email,image,telephone,id_admine) values ("${req.body.nom}","${req.body.prenom}","${req.body.email}","${req.Value}","${req.body.telephone}",${req.name.id})`
+       const rows=await conn.query(ajout);
+       console.log(rows)
+       return res.send("succes")
+      }
+      else 
+      {
+        return res.send("numéro ou email déja existe dans la base données")
+      }
+
+} catch (error) {
+  console.log(error);
+  return res.send("hey hey hajhouj")
+}
+
+
+
+})
+
+
+
+
+
+
+app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modification d'un utilisateur
+
+      console.log("modifier un utilisateur");
+
+      conn.query=util.promisify(conn.query);
+
+
+      //verifier d'abord l'email et le téléphone
+      const sqlEmailTel=`select * from Usernormale where (email="${req.body.email}" or telephone="${req.body.telephone}") and (id_admine=${req.name.id} and id_user!=${req.body.idUser})`;
+
+      try {
+            const rows=await conn.query(sqlEmailTel);
+            if(rows.length!=0)
+            {
+
+            console.log("email ou numéro de téléphone déja existe dans la base donées");
+            return res.send("email ou num de téléphone déja existant dans la base deo données");
+
+            }
+            else   //ici on va commencer l'opération de modification de l'utilisateur
+            {
+            const Moidifier=`update Usernormale set nom="${req.body.nom}" ,prenom="${req.body.prenom}" ,email="${req.body.email}" ,telephone="${req.body.telephone}" where id_admine=${req.name.id} and id_user=${req.body.idUser}`
+            conn.query=util.promisify(conn.query);
+            const rows=await conn.query(Moidifier);
+            console.log("opération passée avec succes");
+            return res.send('opération passée avec succes');
+        }
+      } catch (error) {
+            console.log(error);
+            return res.send("une erreur est servenue");
+      }
+
+}
+)
+
+
+
+
+
+
+ 
+app.get("/recupererImage/:name",verifierUser,async(req,res)=>{   //endpoint de récupération de l'image téléchargée
+  //il faut d'abord verifier que l'image existe dans le systeme de fichiers
+  console.log(req.params.name)
+  console.log("l'id de l'utilisateur est:"+req.name.id)
+  const nomImage=`select * from Admine where id=${req.name.id}`
+
+  try {
+       conn.query=util.promisify(conn.query);
+       const rows=await conn.query(nomImage);
+       console.log(rows[0].image)
+       if (fs.existsSync(`./upload/${rows[0].image}.png`))
+          {
+
+
+                  res.sendFile(path.join(__dirname,'upload/',`${rows[0].image}.png`));
+                  console.log("tous est bon")
+
+          }
+          else 
+          {
+          console.log("image n'existe pas");
+          res.send("image n'existe pas dans le systeme de fichiers")
+          }
+  } catch (error) {
+      console.log(error);
+      return res.send("une erreur est servenue")
+  }
+})
+
+
+
+
+
+async function supprimer(paths)  //fonction de suppression des images des utilisateurs 
+{
+   await Promise.all(paths.map(path => fs1.unlink(path)));
+}
+
+
+
+
+
+
+
+app.get('/supprimerProfile/',verifierUser,async(req,res)=>{  //endpoint de suppression du profile
+
+try {
+
+         //recuperer le nom de l'image de cet utilisateur
+         conn.query=util.promisify(conn.query);
+         const recuperImage=`select * from Admine where id=${req.name.id}`;
+         const resultat=await conn.query(recuperImage);
+
+
+        //supprimer l'image de l'utilisateur
+
+        fs.unlinkSync(`./upload/${resultat[0].image}.png`)
+        console.log("image supprimée")
+
+
+
+
+        //query pour supprimer l'utilisateur
+        const supprimerUser=`delete from Admine where id=${req.name.id}`;
+        const rows=await conn.query(supprimerUser);
+
+
+
+        //supprimer les images des utilisateurs asscoiés
+        const recupererImages=`select * from Usernormale where id_admine=${req.name.id}`;
+        const rows2=await conn.query(recupererImages);
+ 
+        const paths=[];
+        for(let i=0;i<rows2.length;i++)
+        { 
+        paths.push(`./upload/${rows2[i].image}.png`);
+        }
+        await supprimer(paths);
+
+        
+
+        //query de suppression  des utilisateurs associés a cet utilisateur
+        const supprimerUsers=`delete from Usernormale where id_admine=${req.name.id}`;
+        const rows1=await conn.query(supprimerUsers);
+
+
+
+
+
+        //supprimer les cookies 
+        res.clearCookie('token');
+
+
+        //envoyer un message de reussite;
+        return res.send('opértaion passée avec succes');
+
+
+} catch (error) {
+  console.log(error);
+  return res.send("une erreur est servenue ")
+}
+
+})
+
+
+
+
+
+
+app.post("/ModifierProfile/",verifierUser,async(req,res)=>{      //endpoint de modification du profile
+console.log("modifier l'utilisateur");
+const {nom,prenom,email,password}=req.body
+
+try {
+      const recherche=`select * from Admine where id!=${req.name.id} and (email="${req.body.email}")`;
+
+      conn.query=util.promisify(conn.query);
+
+      const rows=await conn.query(recherche);
+
+      if(rows.length!=0)
+      {
+      console.log('email existe dans la base de données');
+
+      return res.send("email existe dans la base données");
+}
+else  //ici on va commncer la modification de l'utilisateur en se basant sur les valeurs saisies par lui
+{
+      
+      let requete=``
+      if(req.body.nom)
+          {
+          requete+=`update Admine set nom="${req.body.nom}"`
+          }
+
+      if(req.body.prenom)
+          {
+          requete+=` ,prenom="${req.body.prenom}"`
+          }
+
+      if(req.body.email)
+          {
+          requete+=` ,email="${req.body.email}"`
+          }
+      if(req.body.password)
+          {
+           //on va crypter le mot de passe avant le stocker dans la base de données
+           const motdepasse=crypter1(req.body.password+"")
+           console.log(motdepasse)
+           requete+=` ,motdepasse="${motdepasse}" where id=${req.name.id}`
+
+          }
+      const rows=await conn.query(requete);
+
+      console.log('opération passée avec succes');
+      return res.send("opération passée avec succes");
+}
+
+} catch (error) {
+    console.log(error);
+    return res.send("une erreur est servenue");
+}
+
+})
+
+
+
+
+
+
+const nommerImageModifie=async(req,res,next)=>{
+      const recupererNomImge=`select * from Admine where id="${req.name.id}"`
+
+
+      try {
+      conn.query=util.promisify(conn.query);
+
+      const rows=await conn.query(recupererNomImge);
+
+      console.log(rows[0].image);
+
+      req.Value=rows[0].image;
+
+      req.nouveauNom=rows[0].nom;
+
+      req.nouveauPrenom=rows[0].prenom;
+
+
+      //on va maintenant supprimer l'image ancienne
+        fs.unlinkSync(`./upload/${rows[0].image}.png`); 
+        console.log('image supprimée');
+
+        next();
+      } catch (error) {
+        console.log(error);
+        res.send("une erreur est servenue")
+      }
+
+}
+
+
+
+
+
+
+
+
+app.post("/modifierImage",verifierUser,nommerImageModifie,upload.single('image'),(req,res)=>{//endpoint de modification de l'image
+
+  console.log('modifier Image')
+  //si on est arrivé a ce stade la c'est a dire tout s'est passé avec succes
+
+  res.clearCookie("token");
+
+  const token=jwt.sign({id:req.name.id,nom:req.nouveauNom,prenom:req.nouveauPrenom},"jwt-secret-key",{expiresIn:"1d"})
+  res.cookie('token',token);
+  res.send("image modifiée")
+  
+})
+
+
+
+
+
+
+
+
+app.use((req,res,next)=>{  //middelewere de gestion des routes qui n'existent pas
   const error=new Error();
-  error.message="aucune route n'est trovée"
+  error.message="aucune route trovée";
   next(error);
 })
 
 
 
 
-app.use(middelwereError);//gerer les erreurs si un middelewere est arreté pour une certaine raison
+
+
+app.use(middelwereError);   //gerer les erreurs si un middelewere est arreté pour une certaine raison
+
+
 
 
 
