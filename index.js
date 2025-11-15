@@ -423,7 +423,7 @@ app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppress
 
 
 
-const nommerImage=async(req,res,next)=>{  //middelewere qui nomme l'image de l'utilisateur avant la telecharger
+const nommerImageUSER=async(req,res,next)=>{  //middelewere qui nomme l'image de l'utilisateur avant la telecharger
 const sql=`select * from Usernormale`;
 
 conn.query=util.promisify(conn.query);
@@ -451,7 +451,7 @@ try {
 
 
 
-app.post("/AjouterUser",verifierUser,nommerImage,upload.single('image'),async(req,res)=>{ //endpoint d'ajout d'un utilisateur
+app.post("/AjouterUser",verifierUser,nommerImageUSER,upload.single('image'),async(req,res)=>{ //endpoint d'ajout d'un utilisateur
 console.log(req.body);
 //ajout de l'utilisteur commence ici
 
@@ -523,6 +523,51 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
 }
 )
 
+
+
+
+
+
+app.get("/recupererImageUser/:idUser",verifierUser,async(req,res)=>{
+  console.log(req.params.idUser);
+
+  const nomImage=`select * from Usernormale where id_user=${req.params.idUser} and id_admine=${req.name.id}`
+
+  try {
+    
+    conn.query=util.promisify(conn.query);
+
+    const rows=await conn.query(nomImage);
+
+    if(rows.length)
+    {
+      //on va recuperer l'image et l'envoyer
+       if (fs.existsSync(`./upload/${rows[0].image}.png`))
+          {
+
+
+                  res.sendFile(path.join(__dirname,'upload/',`${rows[0].image}.png`));
+                  console.log("tous est bon")
+
+          }
+          else 
+          {
+          console.log("image n'existe pas");
+          return res.send("image n'existe pas dans le systeme de fichiers")
+          }
+
+    }else {
+      console.log("utilisateur inexistant")
+
+      return res.send("utilisateur inexistant")
+    }
+
+  
+  } catch (error) {
+    console.log(error)
+    res.send("une erreur est servenue")
+  }
+})
 
 
 
