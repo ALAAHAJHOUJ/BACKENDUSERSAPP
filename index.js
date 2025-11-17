@@ -399,7 +399,7 @@ app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppress
 
         fs.unlink(`./upload/${resultat[0].image}.png`,(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
             
-          if(err) {console.log(err); return res.send("une erreur s'est produite")}
+          if(err) {console.log(err); return res.send({message:"une erreur s'est produite"})}
              
         })
 
@@ -509,9 +509,26 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
             }
             else   //ici on va commencer l'opération de modification de l'utilisateur
             {
-            const Moidifier=`update Usernormale set nom="${req.body.nom}" ,prenom="${req.body.prenom}" ,email="${req.body.email}" ,telephone="${req.body.telephone}" where id_admine=${req.name.id} and id_user=${req.body.idUser}`
+            let  requet=`update Usernormale set `
+            if(req.body.nom)
+            {
+            requet+=`nom="${req.body.nom}"`
+            }
+            if(req.body.prenom)
+            {
+             requet+=` ,prenom="${req.body.prenom}"`
+            }
+            if(req.body.email)
+            {
+             requet+=` ,email="${req.body.email}"`
+            }
+            if(req.body.telephone)
+            {
+             requet+=` ,telephone="${req.body.telephone}"`
+            }
+            
             conn.query=util.promisify(conn.query);
-            const rows=await conn.query(Moidifier);
+            const rows=await conn.query(requet);
             console.log("opération passée avec succes");
             return res.send('opération passée avec succes');
         }
