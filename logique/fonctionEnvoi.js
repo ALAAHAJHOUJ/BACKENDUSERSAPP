@@ -20,7 +20,7 @@ const insererCodeVerification=async (conn,code,email)=>{
 
 
 
-const envoyer=async(email,subject,message,res,conn,code)=>{
+const envoyer=async(email,res,conn,code)=>{
 
 
 

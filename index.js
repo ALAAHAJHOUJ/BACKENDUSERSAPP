@@ -238,7 +238,6 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
 
   const {email}=req.body;
   const sql=`select * from Admine where email="${email}"`;
-
     try {
         conn.query=util.promisify(conn.query);
 
@@ -247,7 +246,9 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
         {
             const nombre=Math.floor(10000+Math.random()*90000);//generer un nombre aléatoire de 5 chiffres
             const codeverification=`ton code de verification est ${nombre}`;
-            await envoyer(email,"renitialiser mot de passe",codeverification,res,conn,nombre+"");
+            const insrerCode=`insert into code (email,dateinsertion,code) values ('${email}','${nombre}','hhhhhh')`
+            await conn.query(insrerCode)
+            await envoyer(email,res,conn,nombre+"");
         }
 
         else 
