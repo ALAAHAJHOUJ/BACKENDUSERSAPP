@@ -238,16 +238,14 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
 
   const {email}=req.body;
   const sql=`select * from Admine where email="${email}"`;
+  const supprimer=`delete from code where email="${email}"`
     try {
         conn.query=util.promisify(conn.query);
-
-        const rows=await conn.query(sql);
+       const rows= conn.query(sql)
         if(rows.length!=0)
         {
+            await conn.query(supprimer)
             const nombre=Math.floor(10000+Math.random()*90000);//generer un nombre aléatoire de 5 chiffres
-            const codeverification=`ton code de verification est ${nombre}`;
-            const insrerCode=`insert into code (email,dateinsertion,code) values ('${email}','${nombre}','hhhhhh')`
-            await conn.query(insrerCode)
             await envoyer(email,res,conn,nombre+"");
         }
 
@@ -284,7 +282,7 @@ app.post("/verifiercode",async(req,res)=>{  //endpoint de verification du code s
       const rows=await conn.query(`select * from Code where code="${code}" and email="${email}"`);
       if(rows.length!=0)
       {
-            const date1=new Date(rows[rows.length-1].dateinsertion);
+            const date1=new Date(rows[0].dateinsertion);
             const maintenant=new Date();
             if(maintenant-date1>60*1000*60){   //ici on va envoyer un message d'autorisation si la difference de la date d'insertion et la date d'envoi de la demande est inférieure a 1h 
               res.send("code valide et n 'est pas encore expiré")
@@ -328,18 +326,23 @@ app.post("/actualiserMotdepasse",async(req,res)=>{//endpoint d'actualisation du 
 const {email,nouveaupassword,code}=req.body;
 const sql=`select * from Code where code="${code}" and email="${email}"`;
 
+if(!email ||!nouveaupassword ||!code)
+{
+  return res.send("email et code et password sont requis dans la demande")
+}
+
+
 try {
     conn.query=util.promisify(conn.query);
     const rows=await conn.query(sql);
     if(rows.length!=0)  //le code existe dans la base de données avec l'email de l'utilisateur concerné
     {
 
-            const dateinsertion=rows[rows.length-1].dateinsertion;  //on doit choisir la derniere ligne (le client peut envoyer plusieurs damandes a l'endpoint de l'envoi du code )
-            if(new Date().now-new Date(dateinsertion)<60*60*1000)  //okk on va mettre a jour le mot de passe de l'utilisateur
+            const dateinsertion=rows[0].dateinsertion;  //on doit choisir la derniere ligne (le client peut envoyer plusieurs damandes a l'endpoint de l'envoi du code )
+            if(new Date()-new Date(dateinsertion)>60*60*1000)  //okk on va mettre a jour le mot de passe de l'utilisateur
             {
             const hasher=crypter1(nouveaupassword);
-            const sql=`update Admine set motdepasse="${hasher}" where id="${iduser}"`;
-            await conn.query(`DELETE FROM Code WHERE code ="${code}" and email="${email}" `);  //supprimer les lignes de la table ,l'utilisateur a mit a jour le mot de passe
+            const sql=`update Admine set motdepasse="${hasher}" where email="${email}"`; 
             await conn.query(sql);
             res.send("mot de passe mis a jour avec succes")
             }
@@ -359,6 +362,10 @@ try {
 
 
 })
+
+
+
+
 
 
 

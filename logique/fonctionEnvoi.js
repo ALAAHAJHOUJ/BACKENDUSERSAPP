@@ -25,7 +25,6 @@ const envoyer=async(email,res,conn,code)=>{
 
 
     try {
-       //recuperer la date d'insertion du code dans la base de données
 
         console.log(code)
         await insererCodeVerification(conn,code,email,code);
