@@ -344,11 +344,12 @@ try {
             const hasher=crypter1(nouveaupassword);
             const sql=`update Admine set motdepasse="${hasher}" where email="${email}"`; 
             await conn.query(sql);
+            console.log("mot de passe a jour ")
             res.send("mot de passe mis a jour avec succes")
             }
             else 
             {
-              res.send("code expirée")
+              res.send("code expiré")
             }
     }else 
 
