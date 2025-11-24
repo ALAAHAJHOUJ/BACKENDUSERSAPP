@@ -240,8 +240,8 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
   const sql=`select * from Admine where email="${email}"`;
   const supprimer=`delete from code where email="${email}"`
     try {
-        conn.query=util.promisify(conn.query);
-       const rows= conn.query(sql)
+       conn.query=util.promisify(conn.query);
+       const rows= await conn.query(sql)
         if(rows.length!=0)
         {
             await conn.query(supprimer)
@@ -252,7 +252,7 @@ app.post("/envoiducode",async(req,res)=>{  //endpoint d'envoi du code par email 
         else 
         {    
              console.log("utilisateur inexistant dans la base de données ");
-             res.send("cet email n'existe pas ");  
+             res.send("cet email n'existe pas");  
         }
     } catch (error) {
         console.log(error);
