@@ -1,3 +1,4 @@
+require("dotenv").config()
 const express=require("express");
 const app=express();
 const cors=require('cors')
@@ -19,7 +20,7 @@ const fs1 = require('fs').promises;
 app.use(cookieParser());//middelewre de parse de cookies
 
 
-app.use(cors({origin: 'http://localhost:3000',credentials:true})); //autoriser les requetes et les cookies pour le navigateur
+app.use(cors({origin:process.env.URL,credentials:true})); //autoriser les requetes et les cookies pour le navigateur
 
 app.use(express.json());//middelwere pour forma Json
 
