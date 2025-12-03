@@ -17,19 +17,22 @@ const fs = require('fs');
 const path = require('path');
 const fs1 = require('fs').promises;
 
+
+
 app.use(cookieParser());//middelewre de parse de cookies
-
-
-app.use(cors({origin: '*',credentials:true})); //autoriser les requetes et les cookies pour le navigateur
-
+app.use(cors({origin:process.env.URL,credentials:true})); //autoriser les requetes et les cookies pour le navigateur
 app.use(express.json());//middelwere pour forma Json
+
+
+
+
 
 
 //pour personnaliser le nom de l'image telechargée
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     console.log('je suis executé'+req.Value)
-    cb(null, './upload/')
+    cb(null, path.join(__dirname, 'upload'))
   },
   filename: function (req, file, cb) {
     cb(null,req.Value+".png");
@@ -141,7 +144,7 @@ app.post("/inscription/",routeMiddleware,upload.single('image'),async(req,res)=>
             console.log(rows.length)
             if(rows.length!=0)
             {
-              fs.unlink(`./upload/${req.Value}.png`,(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
+              fs.unlink(path.join(__dirname, 'upload',`${req.Value}.png`),(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
                 if(err) {console.log(err); return res.send("une erreur s'est produite")}
               })
               return res.send("l'email existe déja dans la base de données");
@@ -407,7 +410,7 @@ app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppress
         console.log(req.body.id);
         console.log(req.name.id)
 
-        fs.unlink(`./upload/${resultat[0].image}.png`,(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
+        fs.unlink(path.join(__dirname, 'upload',`${resultat[0].image}.png`),(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
             
           if(err) {console.log(err); return res.send({message:"une erreur s'est produite"})}
              
@@ -569,7 +572,7 @@ app.get("/recupererImageUser/:idUser",verifierUser,async(req,res)=>{
     if(rows.length)
     {
       //on va recuperer l'image et l'envoyer
-       if (fs.existsSync(`./upload/${rows[0].image}.png`))
+       if (fs.existsSync(path.join(__dirname,'upload',`${rows[0].image}.png`)))
           {
 
 
@@ -600,6 +603,12 @@ app.get("/recupererImageUser/:idUser",verifierUser,async(req,res)=>{
 
 
 
+
+
+
+
+
+
  
 app.get("/recupererImage/:name",verifierUser,async(req,res)=>{   //endpoint de récupération de l'image téléchargée
   //il faut d'abord verifier que l'image existe dans le systeme de fichiers
@@ -611,7 +620,7 @@ app.get("/recupererImage/:name",verifierUser,async(req,res)=>{   //endpoint de r
        conn.query=util.promisify(conn.query);
        const rows=await conn.query(nomImage);
        console.log(rows[0].image)
-       if (fs.existsSync(`./upload/${rows[0].image}.png`))
+       if (fs.existsSync(path.join(__dirname,'upload',`${rows[0].image}.png`)))
           {
 
 
@@ -662,7 +671,7 @@ try {
         const paths=[];
         for(let i=0;i<rows2.length;i++)
         { 
-        paths.push(`./upload/${rows2[i].image}.png`);
+        paths.push(path.join(__dirname,'upload',`${rows2[i].image}.png`));
         }
         await supprimer(paths);
 
@@ -670,7 +679,7 @@ try {
 
         //supprimer l'image de l'utilisateur
 
-        fs.unlinkSync(`./upload/${resultat[0].image}.png`)
+        fs.unlinkSync(path.join(__dirname,'upload',`${resultat[0].image}.png`))
         console.log("image supprimée")
 
 
@@ -790,8 +799,9 @@ const nommerImageModifie=async(req,res,next)=>{
       req.nouveauPrenom=rows[0].prenom;
 
 
-      //on va maintenant supprimer l'image ancienne
-        fs.unlinkSync(`./upload/${rows[0].image}.png`); 
+      //on va maintenant supprimer l'ancienne image 
+
+        fs.unlinkSync(path.join(__dirname,'upload',`${rows[0].image}.png`)); 
         console.log('image supprimée');
 
         next();
