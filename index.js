@@ -21,7 +21,7 @@ const fs1 = require('fs').promises;
 
 app.use(cookieParser());//middelewre de parse de cookies
 app.use(cors({origin:process.env.URL,credentials:true})); //autoriser les requetes et les cookies pour le navigateur
-app.use(express.json());//middelwere pour forma Json
+app.use(express.json());//middelwere pour format Json
 
 
 
