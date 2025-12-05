@@ -16,6 +16,7 @@ const util=require("util");
 const fs = require('fs');
 const path = require('path');
 const fs1 = require('fs').promises;
+const telechargerImage=require('./upload/upload')
 
 
 
@@ -28,21 +29,7 @@ app.use(express.json());//middelwere pour format Json
 
 
 
-//pour personnaliser le nom de l'image telechargée
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    console.log('je suis executé'+req.Value)
-    cb(null, path.join(__dirname, 'upload'))
-  },
-  filename: function (req, file, cb) {
-    cb(null,req.Value+".png");
-  }
-})
-
-
-
-const upload=multer({storage});  //middelwere pour formdata (fichiers)
-
+const upload = multer({ storage: multer.memoryStorage() });//pour lire les demandes de formdata
 
 
 
@@ -104,23 +91,18 @@ res.send({contenu:req.name,message:"authentifié"});
 
 
 
-const routeMiddleware=async(req, res, next)=> {  //middelwere qui sera executé avant l'upload de l'image pour nommer l'image telechargée
-
+const nommerImage=async(req,res,next)=>{
   try {
-        const sql="select * from Admine";
-        conn.query=util.promisify(conn.query);
-        const rows=await conn.query(sql);
-        const nombreLignes=rows.length+1;
-        const nomImage="image"+nombreLignes;
-        req.Value=nomImage;
-        next();
+    const sql=`select * from Admine`
+    conn.query=util.promisify(conn.query)
+    const rows=await conn.query(sql)
+    const nomImage="Admine"+rows.length
+    req.Value=nomImage;
+    next()
   } catch (error) {
-        console.log(error);
-        res.send("une erreur est servenue");
+    console.log(error)
+    return res.send("une erreur est servenue")
   }
-
-
-
 }
 
 
@@ -130,43 +112,52 @@ const routeMiddleware=async(req, res, next)=> {  //middelwere qui sera executé 
 
 
 //endpoint  d'inscription 
-app.post("/inscription/",routeMiddleware,upload.single('image'),async(req,res)=>{
+app.post("/inscription/",nommerImage,upload.single('image'),async(req,res)=>{
           
           try {
-            const recherche=`select * from Admine where email="${req.body.email}"`;
-            const motdepasse=req.body.password;
-            console.log(req.Value);
+                    const recherche=`select * from Admine where email="${req.body.email}"`;
+                    const motdepasse=req.body.password;
+                    console.log(req.Value);
 
-            conn.query=util.promisify(conn.query);
-            const rows=await conn.query(recherche);
+                    conn.query=util.promisify(conn.query);
+                    const rows=await conn.query(recherche);
 
 
-            console.log(rows.length)
-            if(rows.length!=0)
+                    console.log(rows.length)
+                    if(rows.length!=0)
+                    {
+                          return res.send("l'email existe déja dans la base de données");
+                    }
+
+            else //ici on va commencer a enregistrer l'utilisateur dans notre plateform
             {
-              fs.unlink(path.join(__dirname, 'upload',`${req.Value}.png`),(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
-                if(err) {console.log(err); return res.send("une erreur s'est produite")}
-              })
-              return res.send("l'email existe déja dans la base de données");
 
-            }
+                    if(!req.file){
+                        console.log("fichier inexistant")
+                        return res.send("fichier requis dans la demande")
+                    }
+                    //cryptage du mot de passe
+                    const crypter=crypter1(motdepasse);
+                    console.log("voila"+crypter);
+                    const nomImage=req.Value
+                    const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","${nomImage}","${crypter}","${req.body.email}")`
+                    conn.query=util.promisify(conn.query);
+                    await conn.query(inserstion);
 
-            else 
-            {
-            //cryptage du mot de passe
-            const crypter=crypter1(motdepasse);
-            console.log("voila"+crypter);
-            const nomImage=req.Value;
-            const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","${nomImage}","${crypter}","${req.body.email}")`
-            conn.query=util.promisify(conn.query);
-            await conn.query(inserstion);
-            console.log("enregistrement avec succes");
-            return res.send("enregistrement avec succes");
+                    const result = await telechargerImage.uploader.upload(
+                        `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+                        {
+                            public_id:req.Value,
+                        }
+                    );
+
+                    console.log("enregistrement avec succes");
+                    return res.send("enregistrement avec succes");
           
             }
           } catch (error) {
-            console.log(error);
-            res.send("une erreur est servenue")
+                    console.log(error);
+                    res.send("une erreur est servenue")
           }
 
 
