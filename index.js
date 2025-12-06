@@ -16,13 +16,16 @@ const util=require("util");
 const fs = require('fs');
 const path = require('path');
 const fs1 = require('fs').promises;
-const telechargerImage=require('./upload/upload')
-
+const telechargerImage=require("./upload/upload")
 
 
 app.use(cookieParser());//middelewre de parse de cookies
 app.use(cors({origin:process.env.URL,credentials:true})); //autoriser les requetes et les cookies pour le navigateur
-app.use(express.json());//middelwere pour format Json
+app.use(express.json());//middelwere pour forma Json
+
+
+
+
 
 
 
@@ -30,6 +33,7 @@ app.use(express.json());//middelwere pour format Json
 
 
 const upload = multer({ storage: multer.memoryStorage() });//pour lire les demandes de formdata
+
 
 
 
@@ -53,6 +57,8 @@ const verifierUser=(req,res,next)=>{ //fonction de verification de l'utiliateur 
           else
           {       
           req.name=decoded;
+          console.log(req.name)
+          console.log("oui baby")
           next();
           }
 
@@ -69,23 +75,9 @@ const verifierUser=(req,res,next)=>{ //fonction de verification de l'utiliateur 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 app.get('/',verifierUser,(req,res)=>{  //endpoint de verifcation de l'authenticité de l'utilisateur
 res.send({contenu:req.name,message:"authentifié"});
 })
-
 
 
 
@@ -104,7 +96,6 @@ const nommerImage=async(req,res,next)=>{
     return res.send("une erreur est servenue")
   }
 }
-
 
 
 
@@ -144,7 +135,7 @@ app.post("/inscription/",nommerImage,upload.single('image'),async(req,res)=>{
                     conn.query=util.promisify(conn.query);
                     await conn.query(inserstion);
 
-                    const result = await telechargerImage.uploader.upload(
+                     await telechargerImage.uploader.upload(
                         `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                         {
                             public_id:req.Value,
@@ -393,20 +384,12 @@ const rows=await conn.query(sql,(err,resultat)=>{
 app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppression d'un utilisateur
     //opértaion de suppression dans la base de données
 
-
     try {
         conn.query=util.promisify(conn.query);
         const resultat=await conn.query(`select * from Usernormale where id_user=${req.body.id} and id_admine=${req.name.id}`);
 
-        console.log(req.body.id);
-        console.log(req.name.id)
 
-        fs.unlink(path.join(__dirname, 'upload',`${resultat[0].image}.png`),(err)=>{  //supprimer l'image telechargée, ca sert a rien de la garder
-            
-          if(err) {console.log(err); return res.send({message:"une erreur s'est produite"})}
-             
-        })
-
+        //on doit supprimer l'image du service cloudinary
 
         conn.query=util.promisify(conn.query);
         const sql=`delete from Usernormale where id_admine=${req.name.id} and  id_user=${req.body.id}`;
@@ -425,65 +408,42 @@ app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppress
 
 
 
+app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //endpoint d'ajout d'un utilisateur
 
 
-const nommerImageUSER=async(req,res,next)=>{  //middelewere qui nomme l'image de l'utilisateur avant la telecharger
-const sql=`select * from Usernormale`;
-
-conn.query=util.promisify(conn.query);
-
-try {
-        const rows= await conn.query(sql);
-        //on va maintenant nommer l'image avant la stocker dans le systeme de fichiers
-        
-        console.log("le nombre de lignes dans la table d'utilisateurs est:",rows.length);
-        const nombreLignes=rows.length+1+'';
-        const nomImage="imageUser"+nombreLignes;
-        req.Value=nomImage;
-
-        next();
-
-} catch (error) {
-        console.log(error);
-        return res.send("une erreur est servenue");
-}
-
-}
+  //on doit verifier d'abord que l'image existe dans la demande du client
+  if(!req.file){
+    console.log("fichier inexistant")
+    return res.send("fichier inexistant")
+  }
 
 
+  try {
+       const sql=`select * from usernormale`  
+       conn.query=util.promisify(conn.query)
+       const rows=await conn.query(sql)//on recupere le nombre de lignes de la table Usernormale
+       const nblignes=rows.length+1;
+       const nomImage="User"+nblignes
 
 
+                     const sql1=`insert into usernormale (nom,prenom,image,telephone,email) values("${req.body.nom}","${req.body.prenom}","${nomImage}","${req.body.telephone}","${req.body.email}")`
+                     await conn.query(sql1)
+                   
 
+                     await telechargerImage.uploader.upload(
+                        `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+                        {
+                            public_id:nomImage,
+                        }
+                    );
 
-app.post("/AjouterUser",verifierUser,nommerImageUSER,upload.single('image'),async(req,res)=>{ //endpoint d'ajout d'un utilisateur
-console.log(req.body);
-//ajout de l'utilisteur commence ici
+       return res.send("hhhhhh")
+  } catch (error) {
+       console.log(error)
+       return res.send("une erreur est servenue")
+  }
 
-
-//verifier d'abord l'email et le téléphone
-const sqlEmailTel=`select * from Usernormale where (email="${req.body.email}" or telephone="${req.body.telephone}") and id_admine=${req.name.id}`;
-conn.query=util.promisify(conn.query);
-
-try {
-      const rows=await conn.query(sqlEmailTel);
-      console.log(rows.length);
-
-      if(rows.length==0)  //on va ajouter l'utilisateur dans la base de données
-      {
-       const ajout=`insert into Usernormale (nom,prenom,email,image,telephone,id_admine) values ("${req.body.nom}","${req.body.prenom}","${req.body.email}","${req.Value}","${req.body.telephone}",${req.name.id})`
-       const rows=await conn.query(ajout);
-       console.log(rows)
-       return res.send("succes")
-      }
-      else 
-      {
-        return res.send("numéro ou email déja existe dans la base données")
-      }
-
-} catch (error) {
-  console.log(error);
-  return res.send("hey hey hajhouj")
-}
+  
 
 })
 
@@ -543,289 +503,6 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
 
 }
 )
-
-
-
-
-
-
-app.get("/recupererImageUser/:idUser",verifierUser,async(req,res)=>{
-  console.log(req.params.idUser);
-
-  const nomImage=`select * from Usernormale where id_user=${req.params.idUser} and id_admine=${req.name.id}`
-
-  try {
-    
-    conn.query=util.promisify(conn.query);
-
-    const rows=await conn.query(nomImage);
-
-    if(rows.length)
-    {
-      //on va recuperer l'image et l'envoyer
-       if (fs.existsSync(path.join(__dirname,'upload',`${rows[0].image}.png`)))
-          {
-
-
-                  res.sendFile(path.join(__dirname,'upload/',`${rows[0].image}.png`));
-                  console.log("tous est bon")
-
-          }
-          else 
-          {
-          console.log("image n'existe pas");
-          return res.send("image n'existe pas dans le systeme de fichiers")
-          }
-
-    }else {
-      console.log("utilisateur inexistant")
-
-      return res.send("utilisateur inexistant")
-    }
-
-  
-  } catch (error) {
-    console.log(error)
-    res.send("une erreur est servenue")
-  }
-})
-
-
-
-
-
-
-
-
-
-
-
- 
-app.get("/recupererImage/:name",verifierUser,async(req,res)=>{   //endpoint de récupération de l'image téléchargée
-  //il faut d'abord verifier que l'image existe dans le systeme de fichiers
-  console.log(req.params.name)
-  console.log("l'id de l'utilisateur est:"+req.name.id)
-  const nomImage=`select * from Admine where id=${req.name.id}`
-
-  try {
-       conn.query=util.promisify(conn.query);
-       const rows=await conn.query(nomImage);
-       console.log(rows[0].image)
-       if (fs.existsSync(path.join(__dirname,'upload',`${rows[0].image}.png`)))
-          {
-
-
-                  res.sendFile(path.join(__dirname,'upload/',`${rows[0].image}.png`));
-                  console.log("tous est bon")
-
-          }
-          else 
-          {
-          console.log("image n'existe pas");
-          res.send("image n'existe pas dans le systeme de fichiers")
-          }
-  } catch (error) {
-      console.log(error);
-      return res.send("une erreur est servenue")
-  }
-})
-
-
-
-
-
-async function supprimer(paths)  //fonction de suppression des images des utilisateurs 
-{
-   await Promise.all(paths.map(path => fs1.unlink(path)));
-}
-
-
-
-
-
-
-
-app.get('/supprimerProfile/',verifierUser,async(req,res)=>{  //endpoint de suppression du profile
-
-try {
-
-         //recuperer le nom de l'image de cet utilisateur
-         conn.query=util.promisify(conn.query);
-         const recuperImage=`select * from Admine where id=${req.name.id}`;
-         const resultat=await conn.query(recuperImage);
-
-         
-        //supprimer les images des utilisateurs asscoiés
-        const recupererImages=`select * from Usernormale where id_admine=${req.name.id}`;
-        const rows2=await conn.query(recupererImages);
- 
-        const paths=[];
-        for(let i=0;i<rows2.length;i++)
-        { 
-        paths.push(path.join(__dirname,'upload',`${rows2[i].image}.png`));
-        }
-        await supprimer(paths);
-
-
-
-        //supprimer l'image de l'utilisateur
-
-        fs.unlinkSync(path.join(__dirname,'upload',`${resultat[0].image}.png`))
-        console.log("image supprimée")
-
-
-
-
-        //query de suppression  des utilisateurs associés a cet utilisateur
-        const supprimerUsers=`delete from Usernormale where id_admine=${req.name.id}`;
-        const rows1=await conn.query(supprimerUsers);
-
-
-
-        //query pour supprimer l'utilisateur
-        const supprimerUser=`delete from Admine where id=${req.name.id}`;
-        const rows=await conn.query(supprimerUser);
-
-        
-
-
-
-
-        //supprimer les cookies 
-        res.clearCookie('token');
-
-
-        //envoyer un message de reussite;
-        return res.send('opértaion passée avec succes');
-
-
-} catch (error) {
-  console.log(error);
-  return res.send("une erreur est servenue ")
-}
-
-})
-
-
-
-
-
-
-app.post("/ModifierProfile/",verifierUser,async(req,res)=>{      //endpoint de modification du profile
-console.log("modifier l'utilisateur");
-const {nom,prenom,email,password}=req.body
-
-try {
-      const recherche=`select * from Admine where id!=${req.name.id} and (email="${req.body.email}")`;
-
-      conn.query=util.promisify(conn.query);
-
-      const rows=await conn.query(recherche);
-
-      if(rows.length!=0)
-      {
-      console.log('email existe dans la base de données');
-
-      return res.send("email existe dans la base données");
-}
-else  //ici on va commncer la modification de l'utilisateur en se basant sur les valeurs saisies par lui
-{
-      
-      let requete=``
-      if(req.body.nom)
-          {
-          requete+=`update Admine set nom="${req.body.nom}"`
-          }
-
-      if(req.body.prenom)
-          {
-          requete+=` ,prenom="${req.body.prenom}"`
-          }
-
-      if(req.body.email)
-          {
-          requete+=` ,email="${req.body.email}"`
-          }
-      if(req.body.password)
-          {
-           //on va crypter le mot de passe avant le stocker dans la base de données
-           const motdepasse=crypter1(req.body.password+"")
-           console.log(motdepasse)
-           requete+=` ,motdepasse="${motdepasse}" where id=${req.name.id}`
-
-          }
-      const rows=await conn.query(requete);
-
-      console.log('opération passée avec succes');
-      return res.send("opération passée avec succes");
-}
-
-} catch (error) {
-    console.log(error);
-    return res.send("une erreur est servenue");
-}
-
-})
-
-
-
-
-
-
-const nommerImageModifie=async(req,res,next)=>{
-      const recupererNomImge=`select * from Admine where id="${req.name.id}"`
-
-
-      try {
-      conn.query=util.promisify(conn.query);
-
-      const rows=await conn.query(recupererNomImge);
-
-      console.log(rows[0].image);
-
-      req.Value=rows[0].image;
-
-      req.nouveauNom=rows[0].nom;
-
-      req.nouveauPrenom=rows[0].prenom;
-
-
-      //on va maintenant supprimer l'ancienne image 
-
-        fs.unlinkSync(path.join(__dirname,'upload',`${rows[0].image}.png`)); 
-        console.log('image supprimée');
-
-        next();
-      } catch (error) {
-        console.log(error);
-        res.send("une erreur est servenue")
-      }
-
-}
-
-
-
-
-
-
-
-
-app.post("/modifierImage",verifierUser,nommerImageModifie,upload.single('image'),(req,res)=>{//endpoint de modification de l'image
-
-  console.log('modifier Image')
-  //si on est arrivé a ce stade la c'est a dire tout s'est passé avec succes
-
-  res.clearCookie("token");
-
-  const token=jwt.sign({id:req.name.id,nom:req.nouveauNom,prenom:req.nouveauPrenom},"jwt-secret-key",{expiresIn:"1d"})
-  res.cookie('token',token);
-  res.send("image modifiée")
-  
-})
-
-
-
-
 
 
 
