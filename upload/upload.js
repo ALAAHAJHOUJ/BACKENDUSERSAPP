@@ -1,3 +1,4 @@
+require("dotenv").config()
 const telechargerImage=require("cloudinary").v2
 
 

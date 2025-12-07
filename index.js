@@ -16,7 +16,8 @@ const util=require("util");
 const fs = require('fs');
 const path = require('path');
 const fs1 = require('fs').promises;
-const telechargerImage=require("./upload/upload")
+const telechargerImage=require("./upload/upload");
+const { IncomingMessage } = require("http");
 
 
 app.use(cookieParser());//middelewre de parse de cookies
@@ -83,27 +84,9 @@ res.send({contenu:req.name,message:"authentifié"});
 
 
 
-const nommerImage=async(req,res,next)=>{
-  try {
-    const sql=`select * from Admine`
-    conn.query=util.promisify(conn.query)
-    const rows=await conn.query(sql)
-    const nomImage="Admine"+rows.length
-    req.Value=nomImage;
-    next()
-  } catch (error) {
-    console.log(error)
-    return res.send("une erreur est servenue")
-  }
-}
-
-
-
-
-
 
 //endpoint  d'inscription 
-app.post("/inscription/",nommerImage,upload.single('image'),async(req,res)=>{
+app.post("/inscription/",upload.single('image'),async(req,res)=>{
           
           try {
                     const recherche=`select * from Admine where email="${req.body.email}"`;
@@ -120,32 +103,35 @@ app.post("/inscription/",nommerImage,upload.single('image'),async(req,res)=>{
                           return res.send("l'email existe déja dans la base de données");
                     }
 
-            else //ici on va commencer a enregistrer l'utilisateur dans notre plateform
-            {
+                    else //ici on va commencer a enregistrer l'utilisateur dans notre plateform
+                    {
 
-                    if(!req.file){
-                        console.log("fichier inexistant")
-                        return res.send("fichier requis dans la demande")
+                            if(!req.file){
+                                console.log("fichier inexistant")
+                                return res.send("fichier requis dans la demande")
+                            }
+                            //cryptage du mot de passe
+                            const crypter=crypter1(motdepasse);
+                            console.log("voila"+crypter);
+                            const sql2=`select * from Admine`
+                            conn.query=util.promisify(conn.query)
+                            const lignes=await conn.query(sql2)
+                            const nbLignes=lignes+1;
+                            const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","Admine${nbLignes}","${crypter}","${req.body.email}")`
+                            conn.query=util.promisify(conn.query);
+                            await conn.query(inserstion);
+
+                            await telechargerImage.uploader.upload(
+                                `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+                                {
+                                    public_id:`Admine${nbLignes}`,
+                                }
+                            );
+
+                            console.log("enregistrement avec succes");
+                            return res.send("enregistrement avec succes");
+                  
                     }
-                    //cryptage du mot de passe
-                    const crypter=crypter1(motdepasse);
-                    console.log("voila"+crypter);
-                    const nomImage=req.Value
-                    const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","${nomImage}","${crypter}","${req.body.email}")`
-                    conn.query=util.promisify(conn.query);
-                    await conn.query(inserstion);
-
-                     await telechargerImage.uploader.upload(
-                        `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                        {
-                            public_id:req.Value,
-                        }
-                    );
-
-                    console.log("enregistrement avec succes");
-                    return res.send("enregistrement avec succes");
-          
-            }
           } catch (error) {
                     console.log(error);
                     res.send("une erreur est servenue")
