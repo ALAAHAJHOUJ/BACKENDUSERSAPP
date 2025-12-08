@@ -21,7 +21,7 @@ const { IncomingMessage } = require("http");
 
 
 app.use(cookieParser());//middelewre de parse de cookies
-app.use(cors({origin:process.env.URL,credentials:true})); //autoriser les requetes et les cookies pour le navigateur
+app.use(cors({origin:process.env.URL,credentials:true})); //autoriser les requetes et le controlle des cookies pour le navigateur
 app.use(express.json());//middelwere pour forma Json
 
 
@@ -89,18 +89,16 @@ res.send({contenu:req.name,message:"authentifié"});
 app.post("/inscription/",upload.single('image'),async(req,res)=>{
           
           try {
-                    const recherche=`select * from Admine where email="${req.body.email}"`;
+                    const recherche=`select * from Admine where email="${req.body.email}" or image="${req.body.username}"`;
                     const motdepasse=req.body.password;
-                    console.log(req.Value);
 
                     conn.query=util.promisify(conn.query);
                     const rows=await conn.query(recherche);
 
 
-                    console.log(rows.length)
                     if(rows.length!=0)
                     {
-                          return res.send("l'email existe déja dans la base de données");
+                          return res.send("l'email ou le nom d'utilisateur  existe déja dans la base de données");
                     }
 
                     else //ici on va commencer a enregistrer l'utilisateur dans notre plateform
@@ -113,18 +111,14 @@ app.post("/inscription/",upload.single('image'),async(req,res)=>{
                             //cryptage du mot de passe
                             const crypter=crypter1(motdepasse);
                             console.log("voila"+crypter);
-                            const sql2=`select * from Admine`
-                            conn.query=util.promisify(conn.query)
-                            const lignes=await conn.query(sql2)
-                            const nbLignes=lignes+1;
-                            const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","Admine${nbLignes}","${crypter}","${req.body.email}")`
+                            const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","${req.body.username}","${crypter}","${req.body.email}")`
                             conn.query=util.promisify(conn.query);
                             await conn.query(inserstion);
 
                             await telechargerImage.uploader.upload(
                                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                                 {
-                                    public_id:`Admine${nbLignes}`,
+                                    public_id:`${req.body.username}`,
                                 }
                             );
 
@@ -132,7 +126,7 @@ app.post("/inscription/",upload.single('image'),async(req,res)=>{
                             return res.send("enregistrement avec succes");
                   
                     }
-          } catch (error) {
+          }catch (error) {
                     console.log(error);
                     res.send("une erreur est servenue")
           }
