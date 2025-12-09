@@ -18,6 +18,7 @@ const path = require('path');
 const fs1 = require('fs').promises;
 const telechargerImage=require("./upload/upload");
 const { IncomingMessage } = require("http");
+const { useFunc } = require("ajv/dist/compile/util");
 
 
 app.use(cookieParser());//middelewre de parse de cookies
@@ -343,46 +344,21 @@ app.get("/getUsers/",verifierUser,async (req,res)=>{  //recuperer les utilisateu
 console.log(req.name.id);
 conn.query=util.promisify(conn.query);
 
-const sql=`select * from Usernormale where id_admine=${req.name.id}`
-const rows=await conn.query(sql,(err,resultat)=>{
-  if(err) {console.log(err); return res.send("une erreur est servenue")}
 
-  else 
-  {
-    console.log(resultat);
-    const a=JSON.stringify(resultat)
-    return res.send(resultat);
-  }
+try {
+   const sql=`select * from Usernormale where id_admine=${req.name.id}`
+   const rows=await conn.query(sql)
+
+   if(rows.length!=0){
+      return res.send(rows)
+   }else{
+      return res.send("aucun utilisateur existant ")
+   }
+} catch (error) {
+    console.log(error)
+    res.send("une erreur est servenue")
+}
 })
-})
-
-
-
-
-
-
-app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppression d'un utilisateur
-    //opértaion de suppression dans la base de données
-
-    try {
-        conn.query=util.promisify(conn.query);
-        const resultat=await conn.query(`select * from Usernormale where id_user=${req.body.id} and id_admine=${req.name.id}`);
-
-
-        //on doit supprimer l'image du service cloudinary
-
-        conn.query=util.promisify(conn.query);
-        const sql=`delete from Usernormale where id_admine=${req.name.id} and  id_user=${req.body.id}`;
-        await conn.query(sql);
-
-        return res.send({message:"opération avec succes"})
-    } catch (error) {
-      console.log(error);
-      return res.send({message:"une erreur s'est produite"})
-    }
-
-})
-
 
 
 
@@ -399,14 +375,14 @@ app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //
 
 
   try {
-       const sql=`select * from usernormale`  
+       const sql=`select * from usernormale where id_admine=${req.name.id}`  
        conn.query=util.promisify(conn.query)
-       const rows=await conn.query(sql)//on recupere le nombre de lignes de la table Usernormale
+       const rows=await conn.query(sql)//on recupere le nombre de lignes de la table Usernormale (les utilisateus associés a l'Admine)
        const nblignes=rows.length+1;
-       const nomImage="User"+nblignes
+       const nomImage="Admine"+`${req.name.id}`+"User"+nblignes
 
 
-                     const sql1=`insert into usernormale (nom,prenom,image,telephone,email) values("${req.body.nom}","${req.body.prenom}","${nomImage}","${req.body.telephone}","${req.body.email}")`
+                     const sql1=`insert into usernormale (nom,prenom,image,telephone,email,id_admine) values("${req.body.nom}","${req.body.prenom}","${nomImage}","${req.body.telephone}","${req.body.email}","${req.name.id}")`
                      await conn.query(sql1)
                    
 
@@ -423,7 +399,38 @@ app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //
        return res.send("une erreur est servenue")
   }
 
-  
+})
+
+
+
+
+
+
+
+app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppression d'un utilisateur
+    //opértaion de suppression dans la base de données
+
+    try {
+        conn.query=util.promisify(conn.query);
+        const resultat=await conn.query(`select * from Usernormale where id_user=${req.body.id} and id_admine=${req.name.id}`);
+
+        if(resultat.length==0){
+          console.log("utilisateur inexisant")
+          return res.send("utilisateur inexisant")
+        }
+
+        //on doit supprimer l'image du service cloudinary
+
+
+        conn.query=util.promisify(conn.query);
+        const sql=`delete from Usernormale where id_admine=${req.name.id} and  id_user=${req.body.id}`;
+        await conn.query(sql);
+
+        return res.send({message:"opération avec succes"})
+    } catch (error) {
+      console.log(error);
+      return res.send({message:"une erreur s'est produite"})
+    }
 
 })
 
