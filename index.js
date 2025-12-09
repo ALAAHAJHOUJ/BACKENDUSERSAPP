@@ -420,7 +420,8 @@ app.post("/supprimerUser",verifierUser,async(req,res)=>{  //endpoint de suppress
         }
 
         //on doit supprimer l'image du service cloudinary
-
+        await telechargerImage.uploader.destroy(resultat[0].image)
+        
 
         conn.query=util.promisify(conn.query);
         const sql=`delete from Usernormale where id_admine=${req.name.id} and  id_user=${req.body.id}`;
