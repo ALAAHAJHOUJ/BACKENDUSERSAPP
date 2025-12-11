@@ -115,20 +115,22 @@ app.post("/inscription/",upload.single('image'),async(req,res)=>{
                             const inserstion=`insert into Admine (nom,prenom,image,motdepasse,email) values ("${req.body.nom}","${req.body.prenom}","${req.body.username}","${crypter}","${req.body.email}")`
                             conn.query=util.promisify(conn.query);
                             await conn.query(inserstion);
+                            
+                            //maintenant on va telecharger l'image de l'utilisateur dans cloudinary
 
-                            await telechargerImage.uploader.upload(
-                                `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                                {
-                                    public_id:`${req.body.username}`,
-                                }
-                            );
+                              const base64 = req.file.buffer.toString("base64");
+                              const dataURI = `data:${req.file.mimetype};base64,${base64}`;
 
-                            console.log("enregistrement avec succes");
-                            return res.send("enregistrement avec succes");
-                  
+                              const result = await telechargerImage.uploader.upload(dataURI, {
+                              public_id:req.body.username  // <— nom du fichier
+                              });       
+                              
+                              console.log("opération passée avec succes")
+
+                              return res.send("enregistrement avec succes")
                     }
           }catch (error) {
-                    console.log(error);
+                    console.log(error)
                     res.send("une erreur est servenue")
           }
 
@@ -364,6 +366,9 @@ try {
 
 
 
+
+
+
 app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //endpoint d'ajout d'un utilisateur
 
 
@@ -375,6 +380,7 @@ app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //
 
 
   try {
+       const verifierUser=`select * from usernormale where email=${req.body.email} or telephone=${req.body.telephone}`
        const sql=`select * from usernormale where id_admine=${req.name.id}`  
        conn.query=util.promisify(conn.query)
        const rows=await conn.query(sql)//on recupere le nombre de lignes de la table Usernormale (les utilisateus associés a l'Admine)
@@ -382,18 +388,21 @@ app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //
        const nomImage="Admine"+`${req.name.id}`+"User"+nblignes
 
 
-                     const sql1=`insert into usernormale (nom,prenom,image,telephone,email,id_admine) values("${req.body.nom}","${req.body.prenom}","${nomImage}","${req.body.telephone}","${req.body.email}","${req.name.id}")`
-                     await conn.query(sql1)
+       const sql1=`insert into usernormale (nom,prenom,image,telephone,email,id_admine) values("${req.body.nom}","${req.body.prenom}","${nomImage}","${req.body.telephone}","${req.body.email}","${req.name.id}")`
+       await conn.query(sql1)
+
+       //maintenant on va telecharger l'image du sous utilisateur dans cloudinary
+
+       const base64 = req.file.buffer.toString("base64");
+       const dataURI = `data:${req.file.mimetype};base64,${base64}`;
+       const result = await telechargerImage.uploader.upload(dataURI, {
+       public_id:nomImage  // <— nom du fichier du sous utilisateur 
+       });       
+                              
+       console.log("opération passée avec succes")
+
+       return res.send("enregistrement avec succes")                     
                    
-
-                     await telechargerImage.uploader.upload(
-                        `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                        {
-                            public_id:nomImage,
-                        }
-                    );
-
-       return res.send("hhhhhh")
   } catch (error) {
        console.log(error)
        return res.send("une erreur est servenue")
@@ -455,29 +464,29 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
             if(rows.length!=0)
             {
 
-            console.log("email ou numéro de téléphone déja existe dans la base donées");
-            return res.send("email ou num de téléphone déja existant dans la base deo données");
+                console.log("email ou numéro de téléphone déja existe dans la base donées");
+                return res.send("email ou num de téléphone déja existant dans la base deo données");
 
             }
             else   //ici on va commencer l'opération de modification de l'utilisateur
             {
-            let  requet=`update Usernormale set `
-            if(req.body.nom)
-            {
-            requet+=`nom="${req.body.nom}"`
-            }
-            if(req.body.prenom)
-            {
-             requet+=` ,prenom="${req.body.prenom}"`
-            }
-            if(req.body.email)
-            {
-             requet+=` ,email="${req.body.email}"`
-            }
-            if(req.body.telephone)
-            {
-             requet+=` ,telephone="${req.body.telephone}"`
-            }
+              let  requet=`update Usernormale set `
+              if(req.body.nom)
+              {
+                requet+=`nom="${req.body.nom}"`
+              }
+              if(req.body.prenom)
+              {
+                requet+=` ,prenom="${req.body.prenom}"`
+              }
+              if(req.body.email)
+              {
+                requet+=` ,email="${req.body.email}"`
+              }
+              if(req.body.telephone)
+              {
+                requet+=` ,telephone="${req.body.telephone}"`
+              }
             
             conn.query=util.promisify(conn.query);
             const rows=await conn.query(requet);
@@ -491,6 +500,11 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
 
 }
 )
+
+
+
+
+
 
 
 
