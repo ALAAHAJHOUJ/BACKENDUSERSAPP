@@ -381,6 +381,12 @@ app.post("/AjouterUser",verifierUser,upload.single('image'),async(req,res)=>{ //
 
   try {
        const verifierUser=`select * from usernormale where email=${req.body.email} or telephone=${req.body.telephone}`
+       conn.query=util.promisify(conn.query)
+       const rows1=await conn.query(verifierUser)
+       if(rows1!=0){
+          console.log("email ou telephone déja utilisés")
+          return res.send("email ou telephone déja utilisés")
+       }
        const sql=`select * from usernormale where id_admine=${req.name.id}`  
        conn.query=util.promisify(conn.query)
        const rows=await conn.query(sql)//on recupere le nombre de lignes de la table Usernormale (les utilisateus associés a l'Admine)
