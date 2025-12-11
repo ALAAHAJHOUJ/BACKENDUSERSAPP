@@ -4,21 +4,13 @@ const app=express();
 const cors=require('cors')
 const conn=require("./basededonnes/db");
 const crypter1 = require("./logique/hash");
-const comparer = require("./logique/comparer");
 const multer=require('multer');
-const crypter2=require('bcrypt');
 const recherche=require('./logique/recherhce/recherchemotdepasse')
 const cookieParser = require("cookie-parser")
 const jwt=require('jsonwebtoken');
-const envoyeremail = require("./logique/envoyeremail/envoi");
 const envoyer = require("./logique/fonctionEnvoi");
 const util=require("util");
-const fs = require('fs');
-const path = require('path');
-const fs1 = require('fs').promises;
 const telechargerImage=require("./upload/upload");
-const { IncomingMessage } = require("http");
-const { useFunc } = require("ajv/dist/compile/util");
 
 
 app.use(cookieParser());//middelewre de parse de cookies
@@ -493,6 +485,7 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
               {
                 requet+=` ,telephone="${req.body.telephone}"`
               }
+              requet+=` where id-admine=${req.name.id} and id=${req.body.idUser}`
             
             conn.query=util.promisify(conn.query);
             const rows=await conn.query(requet);
@@ -509,6 +502,73 @@ app.post('/ModifierUser/',verifierUser,async(req,res)=>{  //endpoint de modifica
 
 
 
+
+
+app.get("/suppimerProfile",verifierUser,async(req,res)=>{
+  console.log(req.name.id)
+  try {
+    conn.query=util.promisify(conn.query)
+    //on doit supprimer les images premierement 
+    const recupererImageAdmine=`select * from Admine wherer id=${req.name.id}`
+    const resultat1=await conn.query(recupererImageAdmine)
+
+    await telechargerImage.uploader.destroy(resultat1[0].image);
+
+    const recupererImages=`select * from usernormale where id_admine=${req.body.id}`
+    const resultat2=await conn.quert(recupererImages)
+
+    for(let i=0;i<resultat2.length;i++){
+      await telechargerImage.uploader.destroy(resultat2[i].image)
+    }
+
+    const sql1=`delete from usernormale where id_admine=${req.name.id}`
+    await conn.query(sql1)
+    const sql=`delete from Admine where id=${req.name.id}`
+    await conn.query(sql)
+    console.log("opération passée avec succes")
+    return res.send("opération passée avec succes")
+  } catch (error) {
+     console.log(error)
+     return res.send("une erreur est servenue")
+  }
+
+})
+
+
+
+
+
+app.post("/modifierProfile",verifierUser,async(req,res)=>{
+  console.log(req.name.id)
+  conn.query=util.promisify(conn.query)
+  try {
+    const sql=`update Admine set`
+    if(req.body.nom){
+        sql+=` nom=${req.body.nom}`
+    }
+
+    if(req.body.prenom){
+        sql+=` ,prenom=${req.body.prenom}`
+    }
+
+    if(req.body.email){
+        sql+=` ,email=${req.body.email}`
+    }
+
+    if(req.body.password){
+      //on doit d'abord crypter le mot de passe
+      const cryptage=crypter1(req.body.password)
+      sql+=` ,motdepasse=${cryptage}`
+    }
+
+    sql+=` where id=${req.name.id}`
+    await conn.query(sql)
+    return res.send("opération passée avec succes")
+  } catch (error) {
+    console.log(error)
+    return res.send("une erreur est servenue")
+  }
+})
 
 
 
